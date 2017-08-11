@@ -1,0 +1,359 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.spring.main.dao.BoardInterface">
+
+	<!-- 중복 체크 -->
+	<select id="overlay" resultType="String">
+		SELECT user_id FROM member WHERE user_id = #{param1}
+	</select>
+	
+	<!-- 회원 가입 -->
+	<insert id="join" parameterType="com.spring.main.beans.MemberDto">
+		INSERT INTO member(user_id, user_pw, user_name, user_email, gender, birth, user_phone, address)
+			VALUES(#{user_id},#{user_pw},#{user_name},#{user_email},#{gender},#{birth},#{user_phone},#{address})
+	</insert>
+	
+	<!-- 암호화된 로그인 처리 -->
+	<select id="securityLogin" resultType="String">
+		SELECT user_pw FROM member WHERE user_id = #{param1}
+	</select>
+	
+	<select id="findid" resultType="String">
+		SELECT user_id FROM member WHERE user_name = #{param1} AND user_email = #{param2} AND birth = #{param3}
+	</select>
+	
+	<select id="findpw" resultType="String">
+		SELECT user_email FROM member WHERE user_id = #{param1} AND user_name = #{param2} AND user_email = #{param3} AND birth = #{param4}
+	</select>
+	
+	<update id="changepw">
+		UPDATE member SET user_pw = #{param1} WHERE user_id=#{param2}
+	</update>
+	
+	<select id="profileInfo" resultType="com.spring.main.beans.MemberBean">
+		SELECT * FROM member WHERE user_id = #{param1}
+	</select>
+		
+	<!-- 글작성, board idx 현재값 가져오기 -->
+	<insert id="write"
+		parameterType="com.spring.main.beans.BoardBean"
+		useGeneratedKeys="true"
+		keyProperty="board_idx" keyColumn="board_idx">
+		INSERT INTO board(board_idx, writer, board_content, board_cat,board_tag) 
+			VALUES(board_seq.NEXTVAL, #{writer},#{board_content},#{board_cat},#{board_tag})	
+	</insert>
+
+	<!-- 사진 추가 -->
+	<insert id="writeFile"> 
+		INSERT INTO bphoto(bphoto_idx, oldFile, newFile, board_idx) 
+		VALUES(bphoto_seq.NEXTVAL, #{param1}, #{param2}, #{param3}) 
+	</insert>
+
+	<select id="timeline" resultType="com.spring.main.beans.BphotoDTO">
+		SELECT * FROM bphoto WHERE rowid IN 
+		(SELECT min(rowid) FROM bphoto WHERE board_idx IN(SELECT board_idx FROM board WHERE writer = #{param1}) 
+  		group by board_idx) ORDER BY board_idx DESC	
+  	</select>
+	
+	<insert keyColumn="trade_idx" 
+		keyProperty="trade_idx" 
+		useGeneratedKeys="true" 
+		parameterType="com.spring.main.beans.TradeDto" 
+		id="buy"> 
+		INSERT INTO trade(trade_idx, trade_title, trade_content, trade_buy, trade_sell, trade_price, trade_alam, trade_state, trade_start, trade_end) 
+		VALUES(trade_seq.NEXTVAL, #{trade_title},#{trade_content},#{trade_buy},#{trade_sell}, #{trade_price}, #{trade_alam}, 1, #{trade_start}, #{trade_end})
+	 </insert>
+
+	<insert id="writebuyFile"> 
+		INSERT INTO tphoto(tphoto_idx, newfile, oldfile, trade_idx) 
+		VALUES(tphoto_seq.NEXTVAL, #{param2}, #{param1}, #{param3}) 
+	</insert>
+	
+	<select id="review" resultType="com.spring.main.beans.BphotoDTO">
+		SELECT * FROM bphoto WHERE rowid IN 
+		(SELECT min(rowid) FROM bphoto WHERE board_idx IN(SELECT DISTINCT board_idx FROM board WHERE board_sell = #{param1} AND board_cat = '후기') 
+		group by board_idx) ORDER BY board_idx DESC
+		
+	</select>
+	
+	<insert keyColumn="board_idx" 
+	keyProperty="board_idx" 
+	useGeneratedKeys="true" 
+	parameterType="com.spring.main.beans.BoardBean" 
+	id="reviewwrite"> 
+		INSERT INTO board(board_idx, writer, board_content, board_cat, board_sell) 
+		VALUES(board_seq.NEXTVAL, #{writer},#{board_content},#{board_cat},#{board_sell}) 
+	</insert>
+		
+	<!-- 알람 -->
+	<select id="alamCheck" resultType="com.spring.main.beans.TradeDto">
+		SELECT trade_alam, trade_title, trade_idx, trade_buy FROM trade WHERE trade_sell=#{param1} AND trade_alam='1' AND trade_state='1'
+	</select>
+	
+	<select id="alamChecktwo" resultType="com.spring.main.beans.TradeDto">
+		SELECT trade_alam, trade_title, trade_idx, trade_buy, trade_sell FROM trade WHERE trade_buy=#{param1} AND trade_alam='1' AND trade_state='3'
+	</select>
+	
+	<select id="alamCheckthree" resultType="com.spring.main.beans.TradeDto">
+		SELECT trade_alam, trade_title, trade_idx, trade_buy, trade_sell FROM trade WHERE (trade_sell=#{param1} OR trade_buy=#{param1}) AND trade_alam='1' AND trade_state='4'
+	</select>
+	
+	<select id="alamCheckfour" resultType="com.spring.main.beans.TradeDto">
+		SELECT trade_alam, trade_title, trade_idx, trade_buy, trade_sell FROM trade WHERE trade_buy=#{param1} AND trade_alam='1' AND trade_state='2'
+	</select>
+	
+	<select id="tradeDetail" resultType="com.spring.main.beans.TradeDto">
+		SELECT * FROM trade WHERE trade_idx = #{param1}
+	</select>
+	
+	<update id="tradeAlam">
+		UPDATE trade SET trade_alam=0 WHERE trade_idx = #{param1}
+	</update>
+	
+	<select id="tradeDetailPhoto" resultType="com.spring.main.beans.TradePhotoDto">
+		SELECT * FROM tphoto WHERE trade_idx = #{param1}
+	</select>
+
+	<!-- 카테고리 1개 선택 -->
+	<select id="mainlist0" resultType="com.spring.main.beans.BoardBean"> 
+		SELECT board_idx,board_cat,writer,reg_date,board_likeNum FROM board WHERE board_idx IN(SELECT board_idx FROM bphoto WHERE bphoto_idx IN(SELECT MIN(bphoto_idx) FROM bphoto WHERE board_idx IN(SELECT board_idx FROM board WHERE board_cat =#{param1}) GROUP BY board_idx)) ORDER BY board_idx DESC
+	 </select>
+	<!-- 카테고리 1개 선택 사진 -->
+	<select id="photos0" resultType="com.spring.main.beans.BoardBean"> 
+		SELECT board_idx,newfile FROM bphoto WHERE bphoto_idx IN(SELECT MIN(bphoto_idx) FROM bphoto WHERE board_idx IN(SELECT board_idx FROM board WHERE board_cat =#{param1}) GROUP BY board_idx) ORDER BY board_idx DESC 
+	</select>
+	<!-- 카테고리 2개 선택 -->
+	<select id="mainlist1" resultType="com.spring.main.beans.BoardBean"> 
+		SELECT board_idx,board_cat,writer,reg_date,board_likeNum FROM board WHERE board_idx IN(SELECT board_idx FROM bphoto WHERE bphoto_idx IN(SELECT MIN(bphoto_idx) FROM bphoto WHERE board_idx IN(SELECT board_idx FROM board WHERE board_cat =#{param1} OR board_cat=#{param2}) GROUP BY board_idx)) ORDER BY board_idx DESC
+	 </select>
+	<!-- 카테고리 2개 선택 사진 -->
+	<select id="photos1" resultType="com.spring.main.beans.BoardBean"> 
+		SELECT board_idx,newfile FROM bphoto WHERE bphoto_idx IN(SELECT MIN(bphoto_idx) FROM bphoto WHERE board_idx IN(SELECT board_idx FROM board WHERE board_cat =#{param1} OR board_cat=#{param2}) GROUP BY board_idx) ORDER BY board_idx DESC 
+	</select>
+	<!-- 카테고리 3개 선택 -->
+	<select id="mainlist2" resultType="com.spring.main.beans.BoardBean">
+		SELECT board_idx,board_cat,writer,reg_date,board_likeNum FROM board WHERE board_idx IN(SELECT board_idx FROM bphoto WHERE bphoto_idx IN(SELECT MIN(bphoto_idx) FROM bphoto WHERE board_idx IN(SELECT board_idx FROM board WHERE board_cat =#{param1} OR board_cat=#{param2} OR board_cat=#{param3}) GROUP BY board_idx)) ORDER BY board_idx DESC
+	</select>
+	<!-- 카테고리 3개 선택 사진 -->
+	<select id="photos2" resultType="com.spring.main.beans.BoardBean"> 
+		SELECT board_idx,newfile FROM bphoto WHERE bphoto_idx IN(SELECT MIN(bphoto_idx) FROM bphoto WHERE board_idx IN(SELECT board_idx FROM board WHERE board_cat =#{param1} OR board_cat=#{param2} OR board_cat=#{param3}) GROUP BY board_idx) ORDER BY board_idx DESC 
+	</select>
+	<!-- 카테고리 4개 선택 -->
+	<select id="mainlist3" resultType="com.spring.main.beans.BoardBean"> 
+		SELECT board_idx,board_cat,writer,reg_date,board_likeNum FROM board WHERE board_idx IN(SELECT board_idx FROM bphoto WHERE bphoto_idx IN(SELECT MIN(bphoto_idx) FROM bphoto WHERE board_idx IN(SELECT board_idx FROM board WHERE board_cat =#{param1} OR board_cat=#{param2} OR board_cat=#{param3} OR board_cat=#{param4}) GROUP BY board_idx)) ORDER BY board_idx DESC 
+	</select>
+	<!-- 카테고리 4개 선택 사진 -->
+	<select id="photos3" resultType="com.spring.main.beans.BoardBean"> 
+		SELECT board_idx,newfile FROM bphoto WHERE bphoto_idx IN(SELECT MIN(bphoto_idx) FROM bphoto WHERE board_idx IN(SELECT board_idx FROM board WHERE board_cat =#{param1} OR board_cat=#{param2} OR board_cat=#{param3} OR board_cat=#{param4}) GROUP BY board_idx) ORDER BY board_idx DESC 
+	</select>
+	<!-- 카테고리 5개 선택 -->
+	<select id="mainlist4" resultType="com.spring.main.beans.BoardBean"> 
+		SELECT board_idx,board_cat,writer,reg_date,board_likeNum FROM board WHERE board_idx IN(SELECT board_idx FROM bphoto WHERE bphoto_idx IN(SELECT MIN(bphoto_idx) FROM bphoto WHERE board_idx IN(SELECT board_idx FROM board WHERE board_cat =#{param1} OR board_cat=#{param2} OR board_cat=#{param3} OR board_cat=#{param4} OR board_cat=#{param5}) GROUP BY board_idx)) ORDER BY board_idx DESC 
+	</select>
+	<!-- 카테고리 4개 선택 사진 -->
+	<select id="photos4" resultType="com.spring.main.beans.BoardBean"> 
+		SELECT board_idx,newfile FROM bphoto WHERE bphoto_idx IN(SELECT MIN(bphoto_idx) FROM bphoto WHERE board_idx IN(SELECT board_idx FROM board WHERE board_cat =#{param1} OR board_cat=#{param2} OR board_cat=#{param3} OR board_cat=#{param4} OR board_cat=#{param5}) GROUP BY board_idx) ORDER BY board_idx DESC 
+	</select>
+	<!-- 상세보기 내용 -->
+	<select id="content" resultType="com.spring.main.beans.BoardBean"> 
+		SELECT * FROM board WHERE board_idx=#{param1} 
+	</select>
+	
+	<!-- 상세보기 사진 -->
+	<select id="photoList" resultType="com.spring.main.beans.BoardBean"> 
+		SELECT bphoto_idx,newfile FROM bphoto WHERE board_idx=#{param1} ORDER BY bphoto_idx ASC 
+	</select>
+	
+	<!-- 리플 리스트 -->
+	<select id="replyList" resultType="com.spring.main.beans.ReplyBean"> 
+		SELECT * FROM reply WHERE board_idx = #{param1} 
+	</select>
+	
+	<!-- 리플 등록 -->
+	<insert id="repleRegist"> 
+		INSERT INTO reply(reple_idx, replyer,reple_content, board_idx) VALUES(reply_seq.NEXTVAL,#{param1},#{param2},#{param3}) 
+	</insert>
+	
+	<!-- 리플삭제 -->
+	<delete id="repleDel"> 
+		DELETE FROM reply WHERE reple_idx = #{param1} 
+	</delete>
+	
+	<!-- 좋아요 체크 -->
+	<select id="likecheck" resultType="String"> 
+		SELECT user_id FROM likes WHERE board_idx=#{param1} AND user_id = #{param2} 
+	</select>
+	
+	<!-- 좋아요 취소 -->
+	<delete id="likecancel"> 
+		DELETE FROM likes WHERE board_idx=#{param1} AND user_id=#{param2} 
+	</delete>
+	
+	<!-- 좋아요 -->
+	<insert id="like"> 
+		INSERT INTO likes(board_idx,user_id) VALUES(#{param1},#{param2}) 
+	</insert>
+	
+	<!-- 좋아요 내리기 -->
+	<update id="likeminus"> 
+		UPDATE board SET board_likenum = board_likenum-1 WHERE board_idx=#{param1} 
+	</update>
+	
+	<!-- 좋아요 올리기 -->
+	<update id="likeplus"> 
+		UPDATE board SET board_likenum = board_likenum+1 WHERE board_idx=#{param1} 
+	</update>
+	
+	<!-- 좋아요 갯수 -->
+	<select id="likenum" resultType="String">
+		SELECT board_likenum FROM board WHERE board_idx=#{param1} 
+	</select>
+
+	<!-- 프로필 페이지 이동 -->
+	<select resultType="com.spring.main.beans.MemberBean" id="profile"> 
+		SELECT * FROM member WHERE user_id = #{param1} 
+	</select>
+	
+	<!-- 프로필 수정 -->
+	<update id="profileModify"> 
+		UPDATE member SET user_intro = #{param1}, newfile = #{param2}, oldfile = #{param3}, user_name = #{param4}, user_email = #{param5}, user_phone = #{param6}, gender = #{param7}, birth = #{param8}, address = #{param9} WHERE user_id = #{param10} 
+	</update>
+	
+	<!-- 비밀번호 변경시 필요한 암호화된 비밀번호 가져오기 -->
+	<select resultType="String" id="securityPw"> 
+		SELECT user_pw FROM member WHERE user_id = #{param1} 
+	</select>
+	
+	<!-- 비밀번호 변경 -->
+	<update id="pwModify"> 
+		UPDATE member SET user_pw = #{param1} WHERE user_id = #{param2} 
+	</update>
+	
+	<!-- 프로필 게시글 가져오기 -->
+	<select resultType="com.spring.main.beans.BphotoDTO" id="profileList"> 
+		SELECT * FROM bphoto WHERE bphoto_idx IN(SELECT MIN(bphoto_idx) FROM bphoto WHERE board_idx IN(SELECT board_idx FROM board WHERE writer = #{param1}) GROUP BY board_idx) ORDER BY board_idx DESC 
+	</select>
+	
+	<!-- 팔로우 했는지 확인 -->
+	<select id="followCheck" resultType="String">
+		SELECT follow FROM followtable WHERE follower = #{param1}
+	</select>
+
+	<!-- 팔로우하기 -->
+	<insert id="follow">
+		INSERT INTO followtable(follower, follow) VALUES(#{param1}, #{param2})
+	</insert>
+	
+	<!-- 팔로우 수 늘리기 -->
+	<update id="followUp">
+		UPDATE member SET follow_num = follow_num + 1 WHERE user_id = #{param1}
+	</update>
+	
+	<!-- 팔로워 수 늘리기 -->
+	<update id="followerUp">
+		UPDATE member SET follower_num = follower_num + 1 WHERE user_id = #{param1}
+	</update>
+	
+	<!-- 언팔로우 하기 -->
+	<delete id="unFollow">
+		DELETE FROM followtable WHERE follower = #{param1} AND follow = #{param2}
+	</delete>
+	
+	<!-- 팔로우 수 줄이기 -->
+	<update id="followDown">
+		UPDATE member SET follow_num = follow_num - 1 WHERE user_id = #{param1}
+	</update>
+	
+	<!-- 팔로워 수 줄이기 -->
+	<update id="followerDown">
+		UPDATE member SET follower_num = follower_num - 1 WHERE user_id = #{param1}
+	</update>
+	
+	<!-- 팔로우 가져오기 -->
+	<select id="getFollow" resultType="String">
+		SELECT follow FROM followtable WHERE follower = #{param1}
+	</select>
+	
+	<!-- 팔로우 리스트 가져오기 -->
+	<select id="followList" resultType="com.spring.main.beans.FollowListBean">
+		SELECT newfile, user_id FROM member WHERE user_id IN (SELECT follow FROM followtable WHERE follower = #{param1})
+	</select>
+	
+	<!-- 팔로워 리스트 가져오기 -->
+	<select id="followerList" resultType="com.spring.main.beans.FollowListBean">
+		SELECT newfile, user_id FROM member WHERE user_id IN (SELECT follower FROM followtable WHERE follow = #{param1})
+	</select>
+
+	<!-- 글 수정 -->
+	<update parameterType="com.spring.main.beans.BoardBean" id="modify"> 
+		UPDATE board SET board_content = #{board_content}, board_cat =#{board_cat} WHERE board_idx = #{board_idx} 
+	</update>
+	
+	<!-- 수정보기 에서 사진 삭제 -->
+	<delete id="modifyFileDelete"> 
+		DELETE FROM bphoto WHERE newfile=#{param1} 
+	</delete>
+	
+	<select id="buyList" resultType="com.spring.main.beans.TradeDto">
+		SELECT * FROM trade WHERE trade_buy = #{param1} ORDER BY trade_state ASC
+	</select>
+	
+	<select id="sellList" resultType="com.spring.main.beans.TradeDto">
+		SELECT * FROM trade WHERE trade_sell = #{param1} ORDER BY trade_state ASC
+	</select>
+	
+	<update id="stateOk">
+		UPDATE trade SET trade_state = 2 WHERE trade_idx=#{param1} 		
+	</update>
+	
+	<delete id="tradeDel">
+		DELETE FROM trade WHERE trade_idx = #{param1}
+	</delete>
+	
+	<select id="tradePhotoName" resultType="String">
+		SELECT newfile FROM tphoto WHERE trade_idx = #{param1}
+	</select>
+	
+	<delete id="tradePhotoDel">
+		DELETE FROM tphoto WHERE trade_idx = #{param1}
+	</delete>
+	
+	<update id="ingye">
+		UPDATE trade SET trade_state = 3 WHERE trade_idx = #{param1}
+	</update>
+	
+	<update id="insoo">
+		UPDATE trade SET trade_state = 4 WHERE trade_idx = #{param1}
+	</update>
+	
+	<update id="alam">
+		UPDATE trade SET trade_alam = 1 WHERE trade_idx = #{param1}
+	</update>
+	
+	<select id="findidx" resultType="String">
+		SELECT board_idx FROM bphoto WHERE newfile = #{param1}
+	</select>
+	
+	<!-- 태그 아이디 찾기 -->
+	<select id="tag" resultType="String">
+		SELECT follower FROM followtable WHERE follow = #{param1} 
+		AND follower LIKE CONCAT(#{param2},'%')
+	</select>
+	
+	<select id="sellerProfile" resultType="com.spring.main.beans.ProfileDTO">
+		SELECT * FROM member WHERE user_id IN (SELECT trade_sell FROM trade WHERE trade_idx=#{param1})
+	</select>
+	
+	<select id="buyerProfile" resultType="com.spring.main.beans.ProfileDTO">
+		SELECT * FROM member WHERE user_id IN (SELECT trade_buy FROM trade WHERE trade_idx=#{param1})
+	</select>
+	
+	<delete id="boardDelete">
+		DELETE FROM board WHERE board_idx=#{param1}
+	</delete>
+	
+	<select id="newfileRead" resultType="String">
+		SELECT newfile FROM bphoto WHERE board_idx = #{param1} 
+	</select>
+</mapper>
